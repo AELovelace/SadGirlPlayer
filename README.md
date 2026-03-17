@@ -39,6 +39,80 @@ Invite the bot with permissions that cover:
 - `sb!stop` — Stop playback and leave voice
 - `sb!help` — Show command help
 
+## Autonomous Chatbot Mode (Lumi)
+
+The bot can also run as a general-purpose chat participant in specific text channels.
+
+Behavior defaults in this implementation:
+
+- Channel whitelist only (`CHATBOT_CHANNEL_IDS`)
+- 20% baseline unsolicited reply chance (`CHATBOT_REPLY_CHANCE=0.2`)
+- Additional reply triggers for direct mentions/replies and conversational interest heuristics
+- Conservative per-channel cooldown (`CHATBOT_COOLDOWN_MS=15000`)
+- Sliding context window per channel (`CHATBOT_CONTEXT_MESSAGES=20`)
+
+### LLM Infrastructure
+
+Set these env values to use your two Qwen endpoints with round-robin + failover:
+
+- `CHATBOT_MODEL=qwen2.5:7b`
+- `LLM_ENDPOINTS=http://172.27.23.252:11434,http://172.27.23.252:11435`
+- `LLM_TIMEOUT_MS=25000`
+- `LLM_RETRY_LIMIT=2`
+- `LLM_RETRY_BASE_DELAY_MS=1000`
+
+If one endpoint fails, requests automatically retry and fail over to the other endpoint.
+
+### Persistent Long-Term Memory
+
+Chat context and runtime Lumi settings now persist to disk:
+
+- `CHATBOT_MEMORY_FILE=data/chatbot-memory.json`
+- `CHATBOT_MEMORY_FLUSH_MS=5000`
+
+This stores per-channel sliding history and control-plane runtime settings across restarts.
+
+### Slash Command Control Plane (Admin UI)
+
+Enable slash commands to manage Lumi at runtime:
+
+- `/lumi-status`
+- `/lumi-toggle enabled:true|false`
+- `/lumi-set reply_chance:<0..1> cooldown_ms:<n> context_messages:<n> max_response_chars:<n>`
+- `/lumi-channel action:add|remove|list channel:#channel`
+
+Control plane settings:
+
+- `CONTROL_PLANE_ENABLED=true`
+- `SLASH_GUILD_ID=<guild-id>` for fast guild-scoped command registration (recommended)
+- `ADMIN_USER_IDS=<comma-separated-user-ids>` for explicit admin override
+
+Users with Manage Server permission can use these commands by default.
+
+### Moderation Stack
+
+Autonomous input/output moderation is enabled by default:
+
+- Input filtering for empty/oversized messages and optional blocklist terms
+- Optional Discord invite-link blocking
+- Output mention-count cap and output-length cap
+
+Settings:
+
+- `MODERATION_ENABLED=true`
+- `MODERATION_BLOCKLIST=<comma-separated-terms>`
+- `MODERATION_MAX_INPUT_CHARS=750`
+- `MODERATION_MAX_OUTPUT_CHARS=450`
+- `MODERATION_MAX_MENTIONS=3`
+- `MODERATION_BLOCK_INVITE_LINKS=true`
+
+### Suggested First-Pass Tuning
+
+- Lower noise: reduce `CHATBOT_REPLY_CHANCE` to `0.1`
+- Higher activity: raise `CHATBOT_REPLY_CHANCE` to `0.3`
+- Longer answers: raise `CHATBOT_MAX_RESPONSE_CHARS`
+- Faster turn-taking: lower `CHATBOT_COOLDOWN_MS`
+
 ## Notes
 
 - The bot supports simultaneous playback in multiple guilds. Each guild has its own independent voice session and stream pipeline.

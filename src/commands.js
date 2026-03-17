@@ -1,6 +1,7 @@
 const { ChannelType } = require('discord.js');
 
 const { config, parseHttpUrl } = require('./config');
+const { handleAutonomousMessage } = require('./chatbot');
 const { logger } = require('./logger');
 const { getActiveSessionSummary, playForMember, stopActiveSession } = require('./voice');
 
@@ -86,6 +87,8 @@ async function handleMessageCreate(message) {
   if (config.allowedGuildId && message.guildId !== config.allowedGuildId) {
     return;
   }
+
+  await handleAutonomousMessage(message);
 
   if (!message.content.startsWith(config.commandPrefix)) {
     return;
