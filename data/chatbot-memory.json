@@ -1,0 +1,13 @@
+{
+  "channels": {},
+  "settings": {
+    "enabled": true,
+    "channelIds": [
+      "901299978817925131"
+    ],
+    "replyChance": 0.2,
+    "contextMessages": 20,
+    "cooldownMs": 15000,
+    "maxResponseChars": 450
+  }
+}
