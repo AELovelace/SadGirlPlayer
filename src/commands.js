@@ -1,6 +1,6 @@
 const { ChannelType } = require('discord.js');
 
-const { config, parsePlayInput } = require('./config');
+const { config, parseHttpUrl } = require('./config');
 const { logger } = require('./logger');
 const { getRandomQuote, addQuote, getRandomJackHandey } = require('./quotes');
 const { enqueue, getQueue, getQueueLength } = require('./queue');
@@ -216,6 +216,8 @@ async function handleMessageCreate(message) {
   if (config.allowedGuildId && message.guildId !== config.allowedGuildId) {
     return;
   }
+
+  await handleAutonomousMessage(message);
 
   if (!message.content.startsWith(config.commandPrefix)) {
     return;

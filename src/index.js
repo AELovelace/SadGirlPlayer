@@ -1,7 +1,9 @@
 const { Client, Events, GatewayIntentBits } = require('discord.js');
 
+const { flushChatbotState, initializeChatbot } = require('./chatbot');
 const { handleMessageCreate } = require('./commands');
 const { config, getMissingConfigValues } = require('./config');
+const { handleControlPlaneInteraction, registerControlPlane } = require('./controlPlane');
 const { logger } = require('./logger');
 const { stopAllSessions } = require('./voice');
 
@@ -36,19 +38,36 @@ async function shutdown(signal) {
     logger.error('Failed to stop active sessions during shutdown.', error.message);
   }
 
+  try {
+    await flushChatbotState();
+  } catch (error) {
+    logger.warn('Failed to flush chatbot memory during shutdown.', error.message);
+  }
+
   client.destroy();
   process.exit(0);
 }
 
-client.once(Events.ClientReady, (readyClient) => {
+client.once(Events.ClientReady, async (readyClient) => {
+  await initializeChatbot();
+  await registerControlPlane(readyClient);
+
   logger.info(`Logged in as ${readyClient.user.tag}`);
   if (config.allowedGuildId) {
     logger.info(`Guild lock enabled for ${config.allowedGuildId}`);
   }
+
+  logger.info(
+    `Chatbot mode: ${config.chatbotEnabled ? 'enabled' : 'disabled'}; channels=${config.chatbotChannelIds.length}; endpoints=${config.llmEndpoints.length}`,
+  );
 });
 
 client.on(Events.MessageCreate, (message) => {
   void handleMessageCreate(message);
+});
+
+client.on(Events.InteractionCreate, (interaction) => {
+  void handleControlPlaneInteraction(interaction);
 });
 
 client.on(Events.Error, (error) => {

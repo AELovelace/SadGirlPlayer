@@ -18,6 +18,70 @@ function parsePositiveInt(value, fallback) {
   return parsed;
 }
 
+function parseBoolean(value, fallback) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+}
+
+function parseNonNegativeInt(value, fallback) {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed < 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function parseProbability(value, fallback) {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseFloat(value);
+  if (Number.isNaN(parsed)) {
+    return fallback;
+  }
+
+  return Math.max(0, Math.min(1, parsed));
+}
+
+function parseCsvList(value) {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseHttpBaseUrl(value) {
+  const parsed = parseHttpUrl(value);
+  return parsed ? parsed.replace(/\/+$/u, '') : null;
+}
+
+function parseEndpointList(value) {
+  return parseCsvList(value)
+    .map((item) => parseHttpBaseUrl(item))
+    .filter(Boolean);
+}
+
 function parseHttpUrl(value) {
   if (!value) {
     return null;
@@ -118,6 +182,41 @@ const config = Object.freeze({
   logLevel: process.env.LOG_LEVEL?.trim().toLowerCase() || 'info',
   songPollUrl: process.env.SONG_POLL_URL?.trim() || 'https://sadgirlsclub.wtf/blog/posts/current_song.txt',
   songPollIntervalMs: parsePositiveInt(process.env.SONG_POLL_INTERVAL_MS, 15_000),
+  chatbotEnabled: process.env.CHATBOT_ENABLED?.trim().toLowerCase() !== 'false',
+  chatbotChannelIds: parseCsvList(process.env.CHATBOT_CHANNEL_IDS),
+  chatbotReplyChance: parseProbability(process.env.CHATBOT_REPLY_CHANCE, 0.2),
+  chatbotContextMessages: parsePositiveInt(process.env.CHATBOT_CONTEXT_MESSAGES, 20),
+  chatbotCooldownMs: parsePositiveInt(process.env.CHATBOT_COOLDOWN_MS, 15_000),
+  chatbotMaxResponseChars: parsePositiveInt(process.env.CHATBOT_MAX_RESPONSE_CHARS, 450),
+  chatbotPersona:
+    process.env.CHATBOT_PERSONA?.trim()
+    || 'You are Lumi, a quirky upbeat egirl-style assistant. Use she/it pronouns for yourself.',
+  chatbotModel: process.env.CHATBOT_MODEL?.trim() || 'qwen2.5:7b',
+  llmEndpoints: (() => {
+    const configured = parseEndpointList(process.env.LLM_ENDPOINTS);
+    if (configured.length > 0) {
+      return configured;
+    }
+
+    return [
+      parseHttpBaseUrl('http://172.27.23.252:11434'),
+      parseHttpBaseUrl('http://172.27.23.252:11435'),
+    ];
+  })(),
+  llmTimeoutMs: parsePositiveInt(process.env.LLM_TIMEOUT_MS, 25_000),
+  llmRetryLimit: parsePositiveInt(process.env.LLM_RETRY_LIMIT, 2),
+  llmRetryBaseDelayMs: parsePositiveInt(process.env.LLM_RETRY_BASE_DELAY_MS, 1_000),
+  chatbotMemoryFile: process.env.CHATBOT_MEMORY_FILE?.trim() || 'data/chatbot-memory.json',
+  chatbotMemoryFlushMs: parsePositiveInt(process.env.CHATBOT_MEMORY_FLUSH_MS, 5_000),
+  moderationEnabled: parseBoolean(process.env.MODERATION_ENABLED, true),
+  moderationBlocklist: parseCsvList(process.env.MODERATION_BLOCKLIST),
+  moderationMaxInputChars: parsePositiveInt(process.env.MODERATION_MAX_INPUT_CHARS, 750),
+  moderationMaxOutputChars: parsePositiveInt(process.env.MODERATION_MAX_OUTPUT_CHARS, 450),
+  moderationMaxMentions: parseNonNegativeInt(process.env.MODERATION_MAX_MENTIONS, 3),
+  moderationBlockInviteLinks: parseBoolean(process.env.MODERATION_BLOCK_INVITE_LINKS, true),
+  adminUserIds: parseCsvList(process.env.ADMIN_USER_IDS),
+  controlPlaneEnabled: parseBoolean(process.env.CONTROL_PLANE_ENABLED, true),
+  slashGuildId: process.env.SLASH_GUILD_ID?.trim() || null,
 });
 
 function getMissingConfigValues() {
