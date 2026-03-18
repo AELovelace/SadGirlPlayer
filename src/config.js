@@ -185,8 +185,14 @@ const config = Object.freeze({
   chatbotEnabled: process.env.CHATBOT_ENABLED?.trim().toLowerCase() !== 'false',
   chatbotChannelIds: parseCsvList(process.env.CHATBOT_CHANNEL_IDS),
   chatbotReplyChance: parseProbability(process.env.CHATBOT_REPLY_CHANCE, 0.2),
+  chatbotInterestThreshold: parsePositiveInt(process.env.CHATBOT_INTEREST_THRESHOLD, 2),
   chatbotContextMessages: parsePositiveInt(process.env.CHATBOT_CONTEXT_MESSAGES, 20),
   chatbotCooldownMs: parsePositiveInt(process.env.CHATBOT_COOLDOWN_MS, 15_000),
+  chatbotConversationWindowMs: parsePositiveInt(process.env.CHATBOT_CONVERSATION_WINDOW_MS, 300_000),
+  chatbotFollowupCooldownMs: parsePositiveInt(process.env.CHATBOT_FOLLOWUP_COOLDOWN_MS, 5_000),
+  chatbotMomentumWindowMs: parsePositiveInt(process.env.CHATBOT_MOMENTUM_WINDOW_MS, 180_000),
+  chatbotMomentumChanceBoost: parseProbability(process.env.CHATBOT_MOMENTUM_CHANCE_BOOST, 0.35),
+  chatbotMomentumMaxReplyChance: parseProbability(process.env.CHATBOT_MOMENTUM_MAX_REPLY_CHANCE, 0.8),
   chatbotMaxResponseChars: parsePositiveInt(process.env.CHATBOT_MAX_RESPONSE_CHARS, 450),
   chatbotPersona:
     process.env.CHATBOT_PERSONA?.trim()

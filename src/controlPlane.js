@@ -44,9 +44,41 @@ function buildCommands() {
         .setMaxValue(1)
         .setRequired(false))
       .addIntegerOption((option) => option
+        .setName('interest_threshold')
+        .setDescription('Minimum heuristic score needed for an interest-triggered reply')
+        .setMinValue(1)
+        .setRequired(false))
+      .addIntegerOption((option) => option
         .setName('cooldown_ms')
         .setDescription('Minimum milliseconds between autonomous replies per channel')
         .setMinValue(1)
+        .setRequired(false))
+      .addIntegerOption((option) => option
+        .setName('conversation_window_ms')
+        .setDescription('How long recent chat counts as the same conversation')
+        .setMinValue(1000)
+        .setRequired(false))
+      .addIntegerOption((option) => option
+        .setName('followup_cooldown_ms')
+        .setDescription('Shorter cooldown used while Lumi is actively in the conversation')
+        .setMinValue(1000)
+        .setRequired(false))
+      .addIntegerOption((option) => option
+        .setName('momentum_window_ms')
+        .setDescription('How long Lumi keeps momentum after joining a conversation')
+        .setMinValue(1000)
+        .setRequired(false))
+      .addNumberOption((option) => option
+        .setName('momentum_chance_boost')
+        .setDescription('Extra reply chance added while momentum is active')
+        .setMinValue(0)
+        .setMaxValue(1)
+        .setRequired(false))
+      .addNumberOption((option) => option
+        .setName('momentum_max_reply_chance')
+        .setDescription('Ceiling for reply chance while momentum is active')
+        .setMinValue(0)
+        .setMaxValue(1)
         .setRequired(false))
       .addIntegerOption((option) => option
         .setName('context_messages')
@@ -84,7 +116,13 @@ function formatSettings(settings) {
   return [
     `enabled=${settings.enabled}`,
     `replyChance=${settings.replyChance}`,
+    `interestThreshold=${settings.interestThreshold}`,
     `cooldownMs=${settings.cooldownMs}`,
+    `conversationWindowMs=${settings.conversationWindowMs}`,
+    `followupCooldownMs=${settings.followupCooldownMs}`,
+    `momentumWindowMs=${settings.momentumWindowMs}`,
+    `momentumChanceBoost=${settings.momentumChanceBoost}`,
+    `momentumMaxReplyChance=${settings.momentumMaxReplyChance}`,
     `contextMessages=${settings.contextMessages}`,
     `maxResponseChars=${settings.maxResponseChars}`,
     `channels=${settings.channelIds.length > 0 ? settings.channelIds.join(', ') : 'none'}`,
@@ -155,15 +193,39 @@ async function handleControlPlaneInteraction(interaction) {
   if (interaction.commandName === 'lumi-set') {
     const patch = {};
     const replyChance = interaction.options.getNumber('reply_chance', false);
+    const interestThreshold = interaction.options.getInteger('interest_threshold', false);
     const cooldownMs = interaction.options.getInteger('cooldown_ms', false);
+    const conversationWindowMs = interaction.options.getInteger('conversation_window_ms', false);
+    const followupCooldownMs = interaction.options.getInteger('followup_cooldown_ms', false);
+    const momentumWindowMs = interaction.options.getInteger('momentum_window_ms', false);
+    const momentumChanceBoost = interaction.options.getNumber('momentum_chance_boost', false);
+    const momentumMaxReplyChance = interaction.options.getNumber('momentum_max_reply_chance', false);
     const contextMessages = interaction.options.getInteger('context_messages', false);
     const maxResponseChars = interaction.options.getInteger('max_response_chars', false);
 
     if (replyChance !== null) {
       patch.replyChance = replyChance;
     }
+    if (interestThreshold !== null) {
+      patch.interestThreshold = interestThreshold;
+    }
     if (cooldownMs !== null) {
       patch.cooldownMs = cooldownMs;
+    }
+    if (conversationWindowMs !== null) {
+      patch.conversationWindowMs = conversationWindowMs;
+    }
+    if (followupCooldownMs !== null) {
+      patch.followupCooldownMs = followupCooldownMs;
+    }
+    if (momentumWindowMs !== null) {
+      patch.momentumWindowMs = momentumWindowMs;
+    }
+    if (momentumChanceBoost !== null) {
+      patch.momentumChanceBoost = momentumChanceBoost;
+    }
+    if (momentumMaxReplyChance !== null) {
+      patch.momentumMaxReplyChance = momentumMaxReplyChance;
     }
     if (contextMessages !== null) {
       patch.contextMessages = contextMessages;

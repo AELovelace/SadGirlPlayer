@@ -59,7 +59,11 @@ Behavior defaults in this implementation:
 - Channel whitelist only (`CHATBOT_CHANNEL_IDS`)
 - 20% baseline unsolicited reply chance (`CHATBOT_REPLY_CHANCE=0.2`)
 - Additional reply triggers for direct mentions/replies and conversational interest heuristics
+- Interest trigger threshold defaults to `2` (`CHATBOT_INTEREST_THRESHOLD=2`)
+- Recent back-and-forth now boosts reply likelihood inside a rolling conversation window
 - Conservative per-channel cooldown (`CHATBOT_COOLDOWN_MS=15000`)
+- Active conversations use a shorter follow-up cooldown (`CHATBOT_FOLLOWUP_COOLDOWN_MS=5000`)
+- Conversation momentum temporarily boosts reply chance after Lumi has joined the exchange
 - Sliding context window per channel (`CHATBOT_CONTEXT_MESSAGES=20`)
 
 ### LLM Infrastructure
@@ -89,7 +93,8 @@ Enable slash commands to manage Lumi at runtime:
 
 - `/lumi-status`
 - `/lumi-toggle enabled:true|false`
-- `/lumi-set reply_chance:<0..1> cooldown_ms:<n> context_messages:<n> max_response_chars:<n>`
+- `/lumi-set reply_chance:<0..1> interest_threshold:<n> cooldown_ms:<n> conversation_window_ms:<n> followup_cooldown_ms:<n> momentum_window_ms:<n> momentum_chance_boost:<0..1> momentum_max_reply_chance:<0..1> context_messages:<n> max_response_chars:<n>`
+- `/lumi-set interest_threshold:<n>`
 - `/lumi-channel action:add|remove|list channel:#channel`
 
 Control plane settings:
@@ -121,6 +126,11 @@ Settings:
 
 - Lower noise: reduce `CHATBOT_REPLY_CHANCE` to `0.1`
 - Higher activity: raise `CHATBOT_REPLY_CHANCE` to `0.3`
+- More interest-triggered replies: lower `CHATBOT_INTEREST_THRESHOLD` to `1`
+- Make Lumi stay in a conversation longer: raise `CHATBOT_CONVERSATION_WINDOW_MS`
+- Make follow-ups feel snappier: lower `CHATBOT_FOLLOWUP_COOLDOWN_MS`
+- Make Lumi cling to a live exchange more strongly: raise `CHATBOT_MOMENTUM_CHANCE_BOOST`
+- Cap how eager momentum can get: lower `CHATBOT_MOMENTUM_MAX_REPLY_CHANCE`
 - Longer answers: raise `CHATBOT_MAX_RESPONSE_CHARS`
 - Faster turn-taking: lower `CHATBOT_COOLDOWN_MS`
 

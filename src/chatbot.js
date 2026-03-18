@@ -10,8 +10,14 @@ const runtimeSettings = {
   enabled: config.chatbotEnabled,
   channelIds: [...config.chatbotChannelIds],
   replyChance: config.chatbotReplyChance,
+  interestThreshold: config.chatbotInterestThreshold,
   contextMessages: config.chatbotContextMessages,
   cooldownMs: config.chatbotCooldownMs,
+  conversationWindowMs: config.chatbotConversationWindowMs,
+  followupCooldownMs: config.chatbotFollowupCooldownMs,
+  momentumWindowMs: config.chatbotMomentumWindowMs,
+  momentumChanceBoost: config.chatbotMomentumChanceBoost,
+  momentumMaxReplyChance: config.chatbotMomentumMaxReplyChance,
   maxResponseChars: config.chatbotMaxResponseChars,
 };
 
@@ -48,8 +54,14 @@ function snapshotState() {
       enabled: runtimeSettings.enabled,
       channelIds: runtimeSettings.channelIds,
       replyChance: runtimeSettings.replyChance,
+      interestThreshold: runtimeSettings.interestThreshold,
       contextMessages: runtimeSettings.contextMessages,
       cooldownMs: runtimeSettings.cooldownMs,
+      conversationWindowMs: runtimeSettings.conversationWindowMs,
+      followupCooldownMs: runtimeSettings.followupCooldownMs,
+      momentumWindowMs: runtimeSettings.momentumWindowMs,
+      momentumChanceBoost: runtimeSettings.momentumChanceBoost,
+      momentumMaxReplyChance: runtimeSettings.momentumMaxReplyChance,
       maxResponseChars: runtimeSettings.maxResponseChars,
     },
   };
@@ -76,8 +88,30 @@ async function initializeChatbot() {
       ? loaded.settings.channelIds.filter(Boolean)
       : runtimeSettings.channelIds;
     runtimeSettings.replyChance = sanitizeReplyChance(loaded.settings.replyChance);
+    runtimeSettings.interestThreshold = sanitizePositive(
+      loaded.settings.interestThreshold,
+      runtimeSettings.interestThreshold,
+    );
     runtimeSettings.contextMessages = sanitizePositive(loaded.settings.contextMessages, runtimeSettings.contextMessages);
     runtimeSettings.cooldownMs = sanitizePositive(loaded.settings.cooldownMs, runtimeSettings.cooldownMs);
+    runtimeSettings.conversationWindowMs = sanitizePositive(
+      loaded.settings.conversationWindowMs,
+      runtimeSettings.conversationWindowMs,
+    );
+    runtimeSettings.followupCooldownMs = sanitizePositive(
+      loaded.settings.followupCooldownMs,
+      runtimeSettings.followupCooldownMs,
+    );
+    runtimeSettings.momentumWindowMs = sanitizePositive(
+      loaded.settings.momentumWindowMs,
+      runtimeSettings.momentumWindowMs,
+    );
+    runtimeSettings.momentumChanceBoost = sanitizeReplyChance(
+      loaded.settings.momentumChanceBoost,
+    );
+    runtimeSettings.momentumMaxReplyChance = sanitizeReplyChance(
+      loaded.settings.momentumMaxReplyChance,
+    );
     runtimeSettings.maxResponseChars = sanitizePositive(
       loaded.settings.maxResponseChars,
       runtimeSettings.maxResponseChars,
@@ -103,8 +137,14 @@ function getRuntimeSettings() {
     enabled: runtimeSettings.enabled,
     channelIds: [...runtimeSettings.channelIds],
     replyChance: runtimeSettings.replyChance,
+    interestThreshold: runtimeSettings.interestThreshold,
     contextMessages: runtimeSettings.contextMessages,
     cooldownMs: runtimeSettings.cooldownMs,
+    conversationWindowMs: runtimeSettings.conversationWindowMs,
+    followupCooldownMs: runtimeSettings.followupCooldownMs,
+    momentumWindowMs: runtimeSettings.momentumWindowMs,
+    momentumChanceBoost: runtimeSettings.momentumChanceBoost,
+    momentumMaxReplyChance: runtimeSettings.momentumMaxReplyChance,
     maxResponseChars: runtimeSettings.maxResponseChars,
   };
 }
@@ -122,12 +162,48 @@ function updateRuntimeSettings(patch) {
     runtimeSettings.replyChance = sanitizeReplyChance(patch.replyChance);
   }
 
+  if (Object.prototype.hasOwnProperty.call(patch, 'interestThreshold')) {
+    runtimeSettings.interestThreshold = sanitizePositive(
+      patch.interestThreshold,
+      runtimeSettings.interestThreshold,
+    );
+  }
+
   if (Object.prototype.hasOwnProperty.call(patch, 'contextMessages')) {
     runtimeSettings.contextMessages = sanitizePositive(patch.contextMessages, runtimeSettings.contextMessages);
   }
 
   if (Object.prototype.hasOwnProperty.call(patch, 'cooldownMs')) {
     runtimeSettings.cooldownMs = sanitizePositive(patch.cooldownMs, runtimeSettings.cooldownMs);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'conversationWindowMs')) {
+    runtimeSettings.conversationWindowMs = sanitizePositive(
+      patch.conversationWindowMs,
+      runtimeSettings.conversationWindowMs,
+    );
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'followupCooldownMs')) {
+    runtimeSettings.followupCooldownMs = sanitizePositive(
+      patch.followupCooldownMs,
+      runtimeSettings.followupCooldownMs,
+    );
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'momentumWindowMs')) {
+    runtimeSettings.momentumWindowMs = sanitizePositive(
+      patch.momentumWindowMs,
+      runtimeSettings.momentumWindowMs,
+    );
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'momentumChanceBoost')) {
+    runtimeSettings.momentumChanceBoost = sanitizeReplyChance(patch.momentumChanceBoost);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'momentumMaxReplyChance')) {
+    runtimeSettings.momentumMaxReplyChance = sanitizeReplyChance(patch.momentumMaxReplyChance);
   }
 
   if (Object.prototype.hasOwnProperty.call(patch, 'maxResponseChars')) {
@@ -153,7 +229,10 @@ function getChannelState(channelId) {
 }
 
 function pushHistoryEntry(state, entry) {
-  state.history.push(entry);
+  state.history.push({
+    ...entry,
+    timestamp: Number.isFinite(entry.timestamp) ? entry.timestamp : Date.now(),
+  });
   const maxHistory = Math.max(1, runtimeSettings.contextMessages);
   if (state.history.length > maxHistory) {
     state.history.splice(0, state.history.length - maxHistory);
@@ -188,10 +267,19 @@ function computeInterestScore(text) {
   if (/\b(how|why|what|when|where|who)\b/iu.test(normalized)) {
     score += 2;
   }
-  if (/\b(lumi|thoughts|opinion|help|explain|idea|advice)\b/iu.test(normalized)) {
+  if (/\b(lumi|thoughts|opinion|help|explain|idea|advice|anyone|somebody|someone)\b/iu.test(normalized)) {
     score += 2;
   }
-  if (normalized.length >= 24) {
+  if (/\b(can you|could you|would you|do you|should i|is it|are we|am i|wtf|omg|lol|lmao|real|mood|same|crazy|wild)\b/iu.test(normalized)) {
+    score += 1;
+  }
+  if (/\b(i think|i feel|i want|i need|i'm|im|ive|i've)\b/iu.test(normalized)) {
+    score += 1;
+  }
+  if (/[!]{1,}/u.test(normalized)) {
+    score += 1;
+  }
+  if (normalized.length >= 12) {
     score += 1;
   }
 
@@ -210,24 +298,132 @@ function shouldHandleInChannel(message) {
   return runtimeSettings.channelIds.includes(message.channelId);
 }
 
+function computeConversationScore(state, author, now) {
+  const recent = state.history
+    .filter((entry) => Number.isFinite(entry.timestamp) && now - entry.timestamp <= runtimeSettings.conversationWindowMs)
+    .slice(-6);
+
+  if (recent.length === 0) {
+    return {
+      score: 0,
+      hasRecentAssistant: false,
+      lastEntryWasAssistant: false,
+    };
+  }
+
+  let score = 0;
+  const userEntries = recent.filter((entry) => entry.role === 'user');
+  const hasRecentAssistant = recent.some((entry) => entry.role === 'assistant');
+  const lastEntryWasAssistant = recent.length > 1 && recent[recent.length - 2]?.role === 'assistant';
+
+  if (hasRecentAssistant) {
+    score += 1;
+  }
+
+  if (lastEntryWasAssistant) {
+    score += 2;
+  }
+
+  if (userEntries.length >= 2) {
+    score += 1;
+  }
+
+  if (userEntries.some((entry) => entry.author === author && entry !== userEntries[userEntries.length - 1])) {
+    score += 1;
+  }
+
+  if (new Set(userEntries.map((entry) => entry.author)).size >= 2) {
+    score += 1;
+  }
+
+  return {
+    score,
+    hasRecentAssistant,
+    lastEntryWasAssistant,
+  };
+}
+
+function computeMomentum(state, author, now) {
+  const recent = state.history
+    .filter((entry) => Number.isFinite(entry.timestamp) && now - entry.timestamp <= runtimeSettings.momentumWindowMs)
+    .slice(-8);
+
+  if (recent.length === 0) {
+    return {
+      active: false,
+      boost: 0,
+      thresholdRelief: 0,
+    };
+  }
+
+  const recentAssistantReplies = recent.filter((entry) => entry.role === 'assistant').length;
+  const lastTwo = recent.slice(-2);
+  const followsAssistant = lastTwo.length === 2
+    && lastTwo[0].role === 'assistant'
+    && lastTwo[1].role === 'user'
+    && lastTwo[1].author === author;
+  const sameUserFollowups = recent.filter((entry) => entry.role === 'user' && entry.author === author).length;
+
+  let boost = 0;
+  let thresholdRelief = 0;
+
+  if (recentAssistantReplies > 0) {
+    boost += Math.min(runtimeSettings.momentumChanceBoost, recentAssistantReplies * 0.15);
+    thresholdRelief += 1;
+  }
+
+  if (followsAssistant) {
+    boost += 0.15;
+    thresholdRelief += 1;
+  }
+
+  if (sameUserFollowups >= 2) {
+    boost += 0.1;
+  }
+
+  boost = Math.min(boost, runtimeSettings.momentumMaxReplyChance);
+
+  return {
+    active: boost > 0 || thresholdRelief > 0,
+    boost,
+    thresholdRelief,
+  };
+}
+
 function shouldAttemptReply(message, state) {
   const direct = isDirectlyAddressed(message);
-  const interest = computeInterestScore(message.content) >= 3;
-  const probabilistic = Math.random() < runtimeSettings.replyChance;
+  const interestScore = computeInterestScore(message.content);
   const now = Date.now();
-  const inCooldown = now - state.lastReplyAt < runtimeSettings.cooldownMs;
+  const conversation = computeConversationScore(state, message.author.username, now);
+  const momentum = computeMomentum(state, message.author.username, now);
+  const effectiveInterestScore = interestScore + conversation.score;
+  const effectiveInterestThreshold = Math.max(1, runtimeSettings.interestThreshold - momentum.thresholdRelief);
+  const interest = effectiveInterestScore >= effectiveInterestThreshold;
+  const effectiveReplyChance = Math.min(
+    runtimeSettings.momentumMaxReplyChance,
+    runtimeSettings.replyChance + momentum.boost,
+  );
+  const probabilistic = Math.random() < effectiveReplyChance;
+  const effectiveCooldownMs = conversation.hasRecentAssistant
+    ? Math.min(runtimeSettings.cooldownMs, runtimeSettings.followupCooldownMs)
+    : runtimeSettings.cooldownMs;
+  const inCooldown = now - state.lastReplyAt < effectiveCooldownMs;
 
   if (inCooldown) {
     return {
       shouldReply: false,
-      reason: 'cooldown',
+      reason: `cooldown:${effectiveCooldownMs}`,
     };
   }
 
   if (direct || interest || probabilistic) {
     return {
       shouldReply: true,
-      reason: direct ? 'direct' : interest ? 'interest' : 'random',
+      reason: direct
+        ? 'direct'
+        : interest
+          ? `interest:${interestScore}+ctx:${conversation.score}+momentum:${momentum.thresholdRelief}`
+          : `random:${effectiveReplyChance.toFixed(2)}`,
     };
   }
 

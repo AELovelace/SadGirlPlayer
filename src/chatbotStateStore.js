@@ -18,6 +18,7 @@ function normalizeHistory(history) {
       role: item.role === 'assistant' ? 'assistant' : 'user',
       author: typeof item.author === 'string' ? item.author : 'unknown',
       content: typeof item.content === 'string' ? item.content : '',
+      timestamp: Number.isFinite(item.timestamp) ? Number(item.timestamp) : 0,
     }))
     .filter((item) => item.content.trim().length > 0)
     .slice(-Math.max(1, config.chatbotContextMessages));
